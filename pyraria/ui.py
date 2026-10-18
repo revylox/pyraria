@@ -181,11 +181,15 @@ class UI:
         self.messages = self.messages[-10:]
 
     def toggle_inventory(self):
-        self.inventory_open = not self.inventory_open
-        if not self.inventory_open:
+        if self.inventory_open:
             self.close_inventory()
+        else:
+            self.inventory_open = True
+            self.game.sound("menu_open")
 
-    def close_inventory(self):
+    def close_inventory(self, silent=False):
+        if self.inventory_open and not silent:
+            self.game.sound("menu_close")
         self.inventory_open = False
         self.chest = None
         self.settings_open = False
@@ -392,7 +396,8 @@ class UI:
             if rect.collidepoint(pos):
                 if button == 1:
                     action()
-                    self.game.sound("menu")
+                    if action != self._open_settings:   # has its own sound
+                        self.game.sound("menu")
                 return True
         for ref in self.slots:
             if ref.rect.collidepoint(pos):
@@ -1022,6 +1027,12 @@ class UI:
     # ------------------------------------------------------------ settings
     def _open_settings(self):
         self.settings_open = True
+        self.game.sound("menu_open")
+
+    def close_settings(self):
+        if self.settings_open:
+            self.settings_open = False
+            self.game.sound("menu_close")
 
     def _settings_items(self):
         s = C.SETTINGS
@@ -1068,7 +1079,8 @@ class UI:
     def _settings_click(self, pos):
         for r, label, key in self._settings_rects():
             if r.collidepoint(pos):
-                self.game.sound("menu")
+                if key != "back":
+                    self.game.sound("menu")
                 s = C.SETTINGS
                 if key == "lighting":
                     s["lighting"] = "retro" if s["lighting"] == "color" \
@@ -1091,7 +1103,7 @@ class UI:
                 elif key == "exit":
                     self.game.save_and_exit()
                 elif key == "back":
-                    self.settings_open = False
+                    self.close_settings()
                 C.save_settings(s)
                 return True
         return True

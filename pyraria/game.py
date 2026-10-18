@@ -149,7 +149,7 @@ class Game:
                 if ui.wardrobe_open:
                     ui.wardrobe_open = False
                 elif ui.settings_open:
-                    ui.settings_open = False
+                    ui.close_settings()
                 else:
                     ui.toggle_inventory()
             elif k == pygame.K_k:
@@ -341,7 +341,7 @@ class Game:
             elif kind == "death":
                 self.sound("death")
                 self.ui.message(f"{p.name} {data}.", (225, 25, 25))
-                self.ui.close_inventory()
+                self.ui.close_inventory(silent=True)
             elif kind == "message":
                 if not self.ui.messages or self.ui.messages[-1][0] != data:
                     self.ui.message(data, (255, 255, 255))
