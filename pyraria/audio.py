@@ -10,11 +10,13 @@ SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sounds")
 # sound name -> file name (without extension) in SOUND_DIR
 FILE_SOUNDS = {"door_open": "door_open", "door_close": "door_close",
                "menu_open": "menu_open", "menu_close": "menu_close",
-               "menu_tick": "menu_tick"}
+               "menu_tick": "menu_tick",
+               "sword_1": "sword_1", "sword_2": "sword_2"}
 # used when a file is missing or can't be decoded
 FALLBACK = {"door_open": "open", "door_close": "close",
             "menu_open": "menu", "menu_close": "menu",
-            "menu_tick": "menu"}
+            "menu_tick": "menu",
+            "sword_1": "swing", "sword_2": "swing"}
 # minimum time between two plays of the same sound, in milliseconds
 # (sweeping the cursor across a menu shouldn't machine-gun the tick)
 COOLDOWN_MS = {"menu_tick": 150}

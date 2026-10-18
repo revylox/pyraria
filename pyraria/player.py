@@ -414,6 +414,7 @@ class Player:
                 self.use_anim_max = it.use_anim
                 self.item_time = 0
                 self.dir = 1 if mouse_world[0] >= self.cx else -1
+                self.events.append(("swing", it.name))
         if self.item_anim > 0:
             if self.use_item is None or inv.held is None or \
                     inv.held.name != self.use_item:
@@ -479,8 +480,11 @@ class Player:
             for dx in range(1, 3):
                 gx = int((self.cx + self.dir * dx * 14) // 16)
                 for gy in (int(self.cy // 16), int((self.y + self.h - 4) // 16)):
-                    if T.TILES[world.get(gx, gy)].kind in ("plant", "vine"):
+                    tid = world.get(gx, gy)
+                    if T.TILES[tid].kind in ("plant", "vine"):
+                        frame = int(world.frame[gx, gy])
                         world.kill_tile(gx, gy)
+                        self.events.append(("break", (gx, gy, tid, frame)))
             return
         if not reach:
             return
@@ -499,11 +503,12 @@ class Player:
         key = (tx, ty)
         dmg = world.damage.get(key, [0, 0])[0] + power
         tid = world.get(tx, ty)
+        frame = int(world.frame[tx, ty])
         self.events.append(("dig", (tx, ty, tid)))
         if dmg >= 100:
             world.damage.pop(key, None)
             world.kill_tile(tx, ty)
-            self.events.append(("break", (tx, ty, tid)))
+            self.events.append(("break", (tx, ty, tid, frame)))
         else:
             world.damage[key] = [dmg, 0]
 

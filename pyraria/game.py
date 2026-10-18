@@ -11,6 +11,7 @@ from . import webstore
 from .background import Background
 from .entities import (ItemEntity, FallingBlock, Particle, FloatText,
                        pickup_text)
+from .items import ITEMS
 from .minimap import MapUI
 from .renderer import Renderer
 from .ui import UI
@@ -51,6 +52,7 @@ class Game:
         self.exit_requested = False
         self.was_wet = False
         self.chat = None             # text being typed, or None
+        self._plant_colors = {}
         world.on_drop = self.drop_item
         world.on_fall = self._on_fall
         world.dirty.clear()
@@ -324,12 +326,12 @@ class Game:
                         tx * 16 + random.uniform(2, 14),
                         ty * 16 + random.uniform(2, 14), col))
             elif kind == "break":
-                tx, ty, tid = data
-                col = T.TILES[tid].dust
-                for _ in range(8):
-                    self.particles.append(Particle(
-                        tx * 16 + random.uniform(0, 16),
-                        ty * 16 + random.uniform(0, 16), col))
+                tx, ty, tid = data[:3]
+                frame = data[3] if len(data) > 3 else 0
+                self._break_particles(tx, ty, tid, frame)
+            elif kind == "swing":
+                if ITEMS[data].kind == "weapon":
+                    self.sound(random.choice(("sword_1", "sword_2")))
             elif kind == "place":
                 self.sound("place")
             elif kind == "tink":
@@ -346,10 +348,44 @@ class Game:
                 if not self.ui.messages or self.ui.messages[-1][0] != data:
                     self.ui.message(data, (255, 255, 255))
         p.events.clear()
-        if p.item_anim == p.use_anim_max and p.use_item and \
-                p.use_item in ("Copper Shortsword", "Copper Pickaxe",
-                               "Copper Axe", "Wooden Hammer"):
-            self.sound("swing")
+
+    def _sprite_colors(self, tid, frame):
+        """Opaque colours of a plant/vine sprite (cached), for particles."""
+        key = (tid, frame % 6)
+        cols = self._plant_colors.get(key)
+        if cols is None:
+            A = self.assets
+            if T.TILES[tid].kind == "plant":
+                spr = A.plant[tid][frame % 6]
+            else:
+                spr = A.vine[tid][0]
+            w, h = spr.get_size()
+            cols = [tuple(spr.get_at((x, y)))[:3] for x in range(0, w, 2)
+                    for y in range(0, h, 2) if spr.get_at((x, y))[3] > 0]
+            self._plant_colors[key] = cols or [T.TILES[tid].dust]
+        return cols
+
+    def _break_particles(self, tx, ty, tid, frame):
+        d = T.TILES[tid]
+        if d.kind in ("plant", "vine"):
+            # leafy burst: bits in the plant's own colours (petals too)
+            cols = self._sprite_colors(tid, frame)
+            for _ in range(12):
+                c = random.choice(cols)
+                k = random.uniform(0.8, 1.15)
+                self.particles.append(Particle(
+                    tx * 16 + random.uniform(2, 14),
+                    ty * 16 + random.uniform(4, 15),
+                    tuple(min(255, int(v * k)) for v in c),
+                    vx=random.uniform(-1.8, 1.8),
+                    vy=random.uniform(-3.2, -0.8),
+                    life=random.randint(22, 40),
+                    size=random.choice((2, 2, 4)), grav=0.12))
+            return
+        for _ in range(8):
+            self.particles.append(Particle(
+                tx * 16 + random.uniform(0, 16),
+                ty * 16 + random.uniform(0, 16), d.dust))
 
     def _update_camera(self, snap=False):
         p = self.player
