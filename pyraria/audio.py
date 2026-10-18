@@ -9,10 +9,12 @@ RATE = 44100
 SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sounds")
 # sound name -> file name (without extension) in SOUND_DIR
 FILE_SOUNDS = {"door_open": "door_open", "door_close": "door_close",
-               "menu_open": "menu_open", "menu_close": "menu_close"}
+               "menu_open": "menu_open", "menu_close": "menu_close",
+               "menu_tick": "menu_tick"}
 # used when a file is missing or can't be decoded
 FALLBACK = {"door_open": "open", "door_close": "close",
-            "menu_open": "menu", "menu_close": "menu"}
+            "menu_open": "menu", "menu_close": "menu",
+            "menu_tick": "menu"}
 
 
 def _env(n, attack=0.005, decay=None):

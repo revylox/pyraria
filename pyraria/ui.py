@@ -111,6 +111,7 @@ class UI:
         self.equip_page = 0          # 0 = armour/accessories, 1 = misc
         self.settings_open = False
         self.wardrobe_open = False
+        self._settings_hover = None
         self.wardrobe_scroll = 0
         self.skin_names = all_skin_names()
         self._skin_gfx = {}
@@ -663,6 +664,13 @@ class UI:
             m[2] -= 1
         self.messages = [m for m in self.messages if m[2] > 0]
         self._layout()
+        # settings panel: tick when the cursor reaches a different option
+        hov = None
+        if self.settings_open:
+            hov = self._settings_option_at(mouse_pos)
+            if hov is not None and hov != self._settings_hover:
+                self.game.sound("menu_tick")
+        self._settings_hover = hov
         if self.inventory_open:
             self._update_recipes()
         # right-click and hold to keep taking single items
@@ -1027,7 +1035,16 @@ class UI:
     # ------------------------------------------------------------ settings
     def _open_settings(self):
         self.settings_open = True
+        self._settings_hover = self._settings_option_at(
+            pygame.mouse.get_pos())
         self.game.sound("menu_open")
+        self.game.sound("menu_tick")
+
+    def _settings_option_at(self, pos):
+        for r, _label, key in self._settings_rects():
+            if r.collidepoint(pos):
+                return key
+        return None
 
     def close_settings(self):
         if self.settings_open:

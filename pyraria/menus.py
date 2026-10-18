@@ -141,6 +141,15 @@ class Menu:
 
     def update(self):
         self.t += 1
+        pos = pygame.mouse.get_pos()
+        hov = next((i for i, r in enumerate(self.item_rects())
+                    if r.collidepoint(pos)), -1)
+        # tick when the cursor reaches a different option (silent on the
+        # first frame so entering a menu under the cursor makes no sound)
+        if hov != self.hover:
+            if hov != -1 and self.t > 1:
+                self.app.audio.play("menu_tick")
+            self.hover = hov
 
     def draw(self, screen):
         self.app.menu_bg.draw(screen, self.app.assets)
