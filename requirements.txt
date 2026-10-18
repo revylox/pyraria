@@ -1,0 +1,2 @@
+pygame-ce>=2.4      # classic "pygame>=2.5" also works
+numpy>=1.24
