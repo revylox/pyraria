@@ -161,7 +161,14 @@ class Particle:
 
     def draw(self, surf, camx, camy, assets):
         s = self.size if self.life > 8 else max(1, self.size // 2)
-        surf.fill(self.color, (int(self.x - camx), int(self.y - camy), s, s))
+        rect = (int(self.x - camx), int(self.y - camy), s, s)
+        if self.glow:
+            # emissive: added on top of the lit scene, fading out
+            k = min(1.0, self.life / 20)
+            surf.fill(tuple(int(c * k) for c in self.color), rect,
+                      special_flags=pygame.BLEND_RGB_ADD)
+        else:
+            surf.fill(self.color, rect)
 
 
 class FloatText:

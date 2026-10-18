@@ -94,6 +94,11 @@ hotbar ↔ bag), and `Ctrl`-click sends an item to the trash.
   that grow into trees.
 - Day/night cycle using Terraria's timings, coloured smooth lighting (or
   "Retro" blocky lighting), torches, lava glow, and glowing mushrooms.
+- Lighting follows Terraria's rules: light fades by 0.91 per tile through
+  air, 0.56 through solid blocks, and loses red faster than blue in water.
+  Faces of blocks touching light are fully lit, glass lets light through,
+  and a torch held in the hand or lying on the ground lights up its
+  surroundings. Torch flames flicker and give off glowing embers.
 
 **Player and UI**
 - Life with hearts and regeneration, mana stars, breath bubbles, the

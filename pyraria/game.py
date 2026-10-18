@@ -6,6 +6,7 @@ import random
 import pygame
 
 from . import config as C
+from . import lighting
 from . import tiles as T
 from . import webstore
 from .background import Background
@@ -287,6 +288,7 @@ class Game:
         self.entities = [e for e in self.entities if not e.dead]
         if len(self.entities) > 400:
             self.entities = self.entities[-400:]
+        self._spawn_embers()
         for prt in self.particles:
             prt.update(world, p, self)
         self.particles = [q for q in self.particles if not q.dead]
@@ -412,8 +414,10 @@ class Game:
         night = self.bg.draw_sky(screen, camx, camy, world)
         if camy < world.underground_y * 16:
             self.bg.draw_layers(screen, camx, camy, world, night)
+        hand = p.held_light()
         self.renderer.draw(screen, camx, camy, p, self.entities,
-                           self.particles)
+                           self.particles, self._dynamic_lights(),
+                           [(hand[0], hand[1] - 6)] if hand else [])
         self._draw_target(screen, camx, camy)
         for t in self.texts:
             t.draw(screen, camx, camy, self.text)
@@ -443,6 +447,35 @@ class Game:
                            18)
         self.ui.draw_overlay(screen, mpos)
         self._draw_cursor(screen)
+
+    def _spawn_embers(self):
+        """Torches now and then give off a small rising, glowing ember."""
+        sources = list(self.renderer.visible_torches)
+        hand = self.player.held_light()
+        if hand:
+            sources.append((hand[0], hand[1] - 6))
+        for (x, y) in sources:
+            if random.random() < 0.02:
+                self.particles.append(Particle(
+                    x + random.uniform(-2, 2), y + random.uniform(-2, 1),
+                    random.choice(((255, 190, 70), (255, 140, 40),
+                                   (255, 230, 140))),
+                    vx=random.uniform(-0.3, 0.3),
+                    vy=random.uniform(-1.0, -0.4),
+                    life=random.randint(25, 50), size=2, grav=-0.004,
+                    glow=True))
+
+    def _dynamic_lights(self):
+        """Light sources that aren't tiles: a torch in the player's hand and
+        torches lying on the ground (both glow, as in Terraria)."""
+        lights = []
+        hand = self.player.held_light()
+        if hand:
+            lights.append((hand[0], hand[1], lighting.TORCH_LIGHT))
+        for e in self.entities:
+            if isinstance(e, ItemEntity) and e.name == "Torch":
+                lights.append((e.x, e.y, lighting.TORCH_LIGHT))
+        return lights
 
     def _draw_target(self, screen, camx, camy):
         p = self.player

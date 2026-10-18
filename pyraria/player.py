@@ -605,6 +605,11 @@ class Player:
             else:
                 front = 175 - 150 * p
                 item_draw = (it, front, 0)
+        held = self.inv.held
+        holding_torch = item_draw is None and held is not None and \
+            held.name == "Torch"
+        if holding_torch:
+            front = 80                      # torch held out in front
         frame = self.gfx.frame(legs, front, back, walk=self.walk_frame)
         # local canvas (facing right), then flip for left
         canvas = pygame.Surface((140, 140), pygame.SRCALPHA)
@@ -616,10 +621,22 @@ class Player:
             canvas.blit(frame, (ox, oy))
             if item_draw:
                 self._draw_item(canvas, ox, oy, item_draw, assets)
+        if holding_torch:
+            hx, hy = PlayerGfx.hand_pos(front)
+            spr = assets.torch[0]
+            canvas.blit(spr, (ox + (hx + 8) * 2 - 8, oy + (hy + 8) * 2 - 13))
         if self.dir < 0:
             canvas = pygame.transform.flip(canvas, True, False)
         surf.blit(canvas, (round(self.cx - 70 - camx),
                            round(self.y + self.h / 2 - 70 - camy)))
+
+    def held_light(self):
+        """Pixel position of the light from a torch in hand, or None."""
+        held = self.inv.held
+        if self.dead or held is None or held.name != "Torch" or \
+                self.head_wet:
+            return None
+        return (self.cx + self.dir * 13, self.cy - 8)
 
     def _draw_item(self, canvas, ox, oy, item_draw, assets):
         it, angle, thrust = item_draw

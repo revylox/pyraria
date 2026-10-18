@@ -43,7 +43,9 @@ class Renderer:
         self.light = None
         self.light_origin = (0, 0)
         self.frame = 0
-        self.margin = 14
+        self.margin = 24       # tiles beyond the screen that still cast light
+        self.visible_torches = []
+        self.flame_glow = self._make_flame_glow()
 
     # ---------------------------------------------------------------- cache
     def invalidate(self):
@@ -207,7 +209,8 @@ class Renderer:
                     self.lcache.pop(key, None)
 
     # ----------------------------------------------------------------- draw
-    def draw(self, screen, camx, camy, player, entities, particles):
+    def draw(self, screen, camx, camy, player, entities, particles,
+             lights=(), flames=()):
         self.frame += 1
         world = self.world
         ws = self.world_surf
@@ -241,7 +244,8 @@ class Renderer:
             e.draw(ws, icx, icy, self.assets)
         player.draw(ws, icx, icy, self.assets)
         for p in particles:
-            p.draw(ws, icx, icy, self.assets)
+            if not p.glow:
+                p.draw(ws, icx, icy, self.assets)
         for cy in range(cy0, cy1 + 1):
             for cx in range(cx0, cx1 + 1):
                 if cx < 0 or cy < 0 or cx * CHUNK >= world.w or \
@@ -250,8 +254,46 @@ class Renderer:
                 ls = self._get_liquid((cx, cy))
                 if ls is not None:
                     ws.blit(ls, (cx * CPX - icx, cy * CPX - icy))
-        self._apply_light(ws, icx, icy)
+        self._apply_light(ws, icx, icy, lights)
         screen.blit(ws, (0, 0))
+        self._draw_emissive(screen, icx, icy, particles, flames)
+
+    @staticmethod
+    def _make_flame_glow():
+        """Soft additive halo for torch flames (black adds nothing)."""
+        s = pygame.Surface((14, 16))
+        s.fill((0, 0, 0))
+        for r, col in ((7, (34, 22, 6)), (5, (60, 40, 10)), (3, (95, 70, 24))):
+            pygame.draw.ellipse(s, col, (7 - r, 8 - r - 1, r * 2, r * 2 + 2))
+        return s
+
+    def _draw_emissive(self, screen, icx, icy, particles, flames):
+        """Things that glow regardless of the light map, drawn additively
+        after lighting: shimmering torch flames (Terraria draws its torch
+        flames several times with a small random offset) and embers."""
+        world = self.world
+        x0, y0 = max(0, icx // 16 - 1), max(0, icy // 16 - 1)
+        x1 = min(world.w, (icx + SCREEN_W) // 16 + 2)
+        y1 = min(world.h, (icy + SCREEN_H) // 16 + 2)
+        xs, ys = np.nonzero(world.tiles[x0:x1, y0:y1] == T.TORCH)
+        frames = world.frame[x0:x1, y0:y1]
+        torches = []
+        for x, y in zip(xs.tolist(), ys.tolist()):
+            f = int(frames[x, y]) & 3
+            dx = -2 if f == T.TORCH_LEFT else 2 if f == T.TORCH_RIGHT else 0
+            torches.append(((x + x0) * 16 + 8 + dx, (y + y0) * 16 + 3))
+        self.visible_torches = torches
+        glow = self.flame_glow
+        rnd = np.random.random((len(torches) + len(flames), 2, 2))
+        for i, (fx, fy) in enumerate(list(torches) + list(flames)):
+            for k in range(2):
+                jx = (rnd[i, k, 0] - 0.5) * 3.0
+                jy = -rnd[i, k, 1] * 2.5
+                screen.blit(glow, (fx - 7 + jx - icx, fy - 8 + jy - icy),
+                            special_flags=pygame.BLEND_RGB_ADD)
+        for p in particles:
+            if p.glow:
+                p.draw(screen, icx, icy, self.assets)
 
     def _draw_tree_decor(self, ws, icx, icy):
         world, A = self.world, self.assets
@@ -295,14 +337,14 @@ class Renderer:
             stage = min(2, int(dmg / 34))
             ws.blit(A.cracks[stage], (x * 16 - icx, y * 16 - icy))
 
-    def _apply_light(self, ws, icx, icy):
+    def _apply_light(self, ws, icx, icy, lights=()):
         world = self.world
         tx0, ty0 = icx // 16, icy // 16
         nx, ny = SCREEN_W // 16 + 2, SCREEN_H // 16 + 2
         m = self.margin
         sun = world.sun_color()
         light = lighting.compute(world, tx0 - m, ty0 - m, nx + 2 * m,
-                                 ny + 2 * m, sun)
+                                 ny + 2 * m, sun, lights)
         vis = light[m:m + nx, m:m + ny]
         self.light = light
         self.light_origin = (tx0 - m, ty0 - m)
@@ -316,7 +358,7 @@ class Renderer:
         # whole screen; smoothscale maps source pixel i to dest i*16 exactly
         # when scaling to (n - 1) * 16, so sample points sit on tile centres
         ext = light[m - 1:m + nx + 1, m - 1:m + ny + 1]
-        arr = (np.clip(ext, 0, 1) ** 0.9 * 255).astype(np.uint8)
+        arr = (np.clip(ext, 0, 1) * 255).astype(np.uint8)    # linear
         small = pygame.surfarray.make_surface(arr)
         n2, m2 = arr.shape[0], arr.shape[1]
         if SETTINGS.get("lighting", "color") == "retro":

@@ -278,6 +278,9 @@ SOLID = np.array([t.solid for t in TILES], dtype=bool)
 # tiles whose textures connect to each other (full blocks)
 MERGE = np.array([t.solid and t.kind == "block" for t in TILES], dtype=bool)
 BLOCKS_SUN = np.array([t.blocks_sun for t in TILES], dtype=bool)
+# tiles that stop light spreading (glass lets it through, like Terraria)
+BLOCKS_LIGHT = SOLID.copy()
+BLOCKS_LIGHT[GLASS] = False
 EMIT = np.zeros((NUM_TILES, 3), dtype=np.float32)
 for _d in TILES:
     if _d.light:
