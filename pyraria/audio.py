@@ -15,6 +15,9 @@ FILE_SOUNDS = {"door_open": "door_open", "door_close": "door_close",
 FALLBACK = {"door_open": "open", "door_close": "close",
             "menu_open": "menu", "menu_close": "menu",
             "menu_tick": "menu"}
+# minimum time between two plays of the same sound, in milliseconds
+# (sweeping the cursor across a menu shouldn't machine-gun the tick)
+COOLDOWN_MS = {"menu_tick": 150}
 
 
 def _env(n, attack=0.005, decay=None):
@@ -37,6 +40,7 @@ class Audio:
         self.ok = False
         self.sounds = {}
         self.volume = volume
+        self._last_played = {}
         try:
             pygame.mixer.pre_init(RATE, -16, 2, 512)
             pygame.mixer.init(RATE, -16, 2, 512)
@@ -124,7 +128,14 @@ class Audio:
                     continue
 
     def play(self, name):
-        if self.ok and self.volume > 0:
-            s = self.sounds.get(name) or self.sounds.get(FALLBACK.get(name))
-            if s:
-                s.play()
+        if not (self.ok and self.volume > 0):
+            return
+        cooldown = COOLDOWN_MS.get(name)
+        if cooldown:
+            now = pygame.time.get_ticks()
+            if now - self._last_played.get(name, -cooldown) < cooldown:
+                return
+            self._last_played[name] = now
+        s = self.sounds.get(name) or self.sounds.get(FALLBACK.get(name))
+        if s:
+            s.play()
