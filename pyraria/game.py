@@ -236,7 +236,7 @@ class Game:
                 if pygame.Rect(x0 * 16, y0 * 16, 16, 48).colliderect(p.rect()):
                     return
             self.world.toggle_door(tx, ty)
-            self.sound("open" if tid == T.DOOR_CLOSED else "close")
+            self.sound("door_open" if tid == T.DOOR_CLOSED else "door_close")
         elif tid == T.CHEST:
             pos = self.world.multi_origin(tx, ty)
             if self.ui.chest == pos:

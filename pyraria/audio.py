@@ -1,8 +1,16 @@
-"""Tiny synthesised sound effects (no external assets)."""
+"""Sound effects: small synthesised ones plus audio files from sounds/."""
+import os
+import sys
+
 import numpy as np
 import pygame
 
-RATE = 22050
+RATE = 44100
+SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sounds")
+# sound name -> file name (without extension) in SOUND_DIR
+FILE_SOUNDS = {"door_open": "door_open", "door_close": "door_close"}
+# used when a file is missing or can't be decoded
+FALLBACK = {"door_open": "open", "door_close": "close"}
 
 
 def _env(n, attack=0.005, decay=None):
@@ -88,6 +96,7 @@ class Audio:
         self.sounds["death"] = _to_sound(
             np.sin(np.arange(int(RATE * 0.6)) / RATE * 2 * np.pi * 110) *
             np.exp(-np.arange(int(RATE * 0.6)) / RATE / 0.2), 0.5)
+        self._load_files()
         self.set_volume(self.volume)
 
     def set_volume(self, v):
@@ -95,8 +104,23 @@ class Audio:
         for s in self.sounds.values():
             s.set_volume(v)
 
+    def _load_files(self):
+        # browsers (pygbag build) only get the .ogg copies
+        exts = (".ogg", ".wav") if sys.platform == "emscripten" else \
+            (".wav", ".ogg")
+        for name, base in FILE_SOUNDS.items():
+            for ext in exts:
+                path = os.path.join(SOUND_DIR, base + ext)
+                if not os.path.exists(path):
+                    continue
+                try:
+                    self.sounds[name] = pygame.mixer.Sound(path)
+                    break
+                except pygame.error:
+                    continue
+
     def play(self, name):
         if self.ok and self.volume > 0:
-            s = self.sounds.get(name)
+            s = self.sounds.get(name) or self.sounds.get(FALLBACK.get(name))
             if s:
                 s.play()

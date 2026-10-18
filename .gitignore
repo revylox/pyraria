@@ -4,3 +4,4 @@ saves/
 dist/
 .venv/
 build/
+*-pygbag.*

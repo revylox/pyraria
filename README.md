@@ -160,3 +160,4 @@ That writes an editable sprite-sheet template to `skins/`.
 | `pyraria/renderer.py`, `lighting.py`, `background.py` | rendering |
 | `pyraria/terrain_tex.py`, `textures.py` | procedural pixel art |
 | `pyraria/ui.py`, `minimap.py`, `text.py`, `audio.py` | HUD, map, fonts, sound |
+| `pyraria/sounds/` | sound effect files (door open/close; `.wav` for desktop, `.ogg` for the web build) |
