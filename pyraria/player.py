@@ -6,19 +6,19 @@ import pygame
 from . import config as C
 from . import tiles as T
 from .inventory import Inventory
-from .customskins import make_gfx
 from .items import ITEMS, STARTER_ITEMS, held_sprite
 from .playergfx import PlayerGfx, IDLE, JUMP, LEG_FRAMES
 from .world import WATER, LAVA
 
 _SOLID = T.SOLID
+# where the hand grips tools/weapons, in px from the icon's bottom-left
+HELD_GRIP = {"Copper Pickaxe": 7}
 
 
 class Player:
-    def __init__(self, name="Player", look=None):
+    def __init__(self, name="Player"):
         self.name = name
-        self.look = look or {}
-        self.gfx = make_gfx(self.look)
+        self.gfx = PlayerGfx()
         self.inv = Inventory()
         self.w, self.h = C.PLAYER_W, C.PLAYER_H
         self.x = self.y = 0.0
@@ -54,28 +54,23 @@ class Player:
         self.stats = {"deaths": 0}
         self.events = []           # (kind, payload) consumed by the game
 
-    def set_look(self, look):
-        """Change appearance (skin preset or custom colours)."""
-        self.look = dict(look)
-        self.gfx = make_gfx(self.look)
-
     # ---------------------------------------------------------- creation
     @classmethod
-    def new(cls, name, look):
-        p = cls(name, look)
+    def new(cls, name):
+        p = cls(name)
         if C.STARTER_KIT:
             for n, c in STARTER_ITEMS:
                 p.inv.add(n, c)
         return p
 
     def to_json(self):
-        return {"name": self.name, "look": self.look,
+        return {"name": self.name,
                 "life_max": self.life_max, "mana_max": self.mana_max,
                 "inventory": self.inv.to_json(), "stats": self.stats}
 
     @classmethod
     def from_json(cls, d):
-        p = cls(d.get("name", "Player"), d.get("look", {}))
+        p = cls(d.get("name", "Player"))
         p.life_max = d.get("life_max", 100)
         p.mana_max = d.get("mana_max", 20)
         p.life = p.life_max
@@ -610,7 +605,8 @@ class Player:
             held.name == "Torch"
         if holding_torch:
             front = 80                      # torch held out in front
-        frame = self.gfx.frame(legs, front, back, walk=self.walk_frame)
+        frame = self.gfx.frame(legs, front, back, walk=self.walk_frame,
+                               arm=item_draw is not None or holding_torch)
         # local canvas (facing right), then flip for left
         canvas = pygame.Surface((140, 140), pygame.SRCALPHA)
         ox, oy = 70 - 36, 70 + 21 - 72
@@ -623,8 +619,10 @@ class Player:
                 self._draw_item(canvas, ox, oy, item_draw, assets)
         if holding_torch:
             hx, hy = PlayerGfx.hand_pos(front)
-            spr = assets.torch[0]
-            canvas.blit(spr, (ox + (hx + 8) * 2 - 8, oy + (hy + 8) * 2 - 13))
+            px, py = ox + (hx + 8) * 2 - 8, oy + (hy + 8) * 2 - 13
+            canvas.blit(assets.torch[0], (px, py))
+            fx, fy = assets.flame_offset[0]
+            canvas.blit(assets.flame(), (px + fx, py + fy))
         if self.dir < 0:
             canvas = pygame.transform.flip(canvas, True, False)
         surf.blit(canvas, (round(self.cx - 70 - camx),
@@ -653,7 +651,8 @@ class Player:
             rot = pygame.transform.rotate(spr, theta - 45)
             # handle is the bottom-left corner of the icon
             w, h = spr.get_size()
-            vx, vy = -w / 2 + 3, h / 2 - 3
+            g = HELD_GRIP.get(it.name, 3)
+            vx, vy = -w / 2 + g, h / 2 - g
             r = math.radians(theta - 45)
             rx = vx * math.cos(r) + vy * math.sin(r)
             ry = -vx * math.sin(r) + vy * math.cos(r)

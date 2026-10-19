@@ -14,8 +14,7 @@ import asyncio
 import numpy  # noqa: F401  (imported here so the web build ships numpy)
 import pygame  # noqa: F401
 
-from pyraria.app import WEB, handle_cli, main_async
+from pyraria.app import WEB, main_async
 
 if WEB or __name__ == "__main__":
-    if WEB or not handle_cli():
-        asyncio.run(main_async())
+    asyncio.run(main_async())

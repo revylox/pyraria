@@ -45,7 +45,6 @@ class Renderer:
         self.frame = 0
         self.margin = 24       # tiles beyond the screen that still cast light
         self.visible_torches = []
-        self.flame_glow = self._make_flame_glow()
 
     # ---------------------------------------------------------------- cache
     def invalidate(self):
@@ -210,9 +209,10 @@ class Renderer:
 
     # ----------------------------------------------------------------- draw
     def draw(self, screen, camx, camy, player, entities, particles,
-             lights=(), flames=()):
+             lights=()):
         self.frame += 1
         world = self.world
+        self.assets.anim_tick = world.tick_count
         ws = self.world_surf
         ws.fill((0, 0, 0, 0))
         icx, icy = int(camx), int(camy)
@@ -240,6 +240,7 @@ class Renderer:
         self._trim_cache(cx0, cy0, cx1, cy1)
         self._draw_tree_decor(ws, icx, icy)
         self._draw_cracks(ws, icx, icy)
+        self._draw_flames(ws, icx, icy)
         for e in entities:
             e.draw(ws, icx, icy, self.assets)
         player.draw(ws, icx, icy, self.assets)
@@ -256,22 +257,15 @@ class Renderer:
                     ws.blit(ls, (cx * CPX - icx, cy * CPX - icy))
         self._apply_light(ws, icx, icy, lights)
         screen.blit(ws, (0, 0))
-        self._draw_emissive(screen, icx, icy, particles, flames)
+        for p in particles:
+            if p.glow:
+                p.draw(screen, icx, icy, self.assets)
 
-    @staticmethod
-    def _make_flame_glow():
-        """Soft additive halo for torch flames (black adds nothing)."""
-        s = pygame.Surface((14, 16))
-        s.fill((0, 0, 0))
-        for r, col in ((7, (34, 22, 6)), (5, (60, 40, 10)), (3, (95, 70, 24))):
-            pygame.draw.ellipse(s, col, (7 - r, 8 - r - 1, r * 2, r * 2 + 2))
-        return s
-
-    def _draw_emissive(self, screen, icx, icy, particles, flames):
-        """Things that glow regardless of the light map, drawn additively
-        after lighting: shimmering torch flames (Terraria draws its torch
-        flames several times with a small random offset) and embers."""
-        world = self.world
+    def _draw_flames(self, ws, icx, icy):
+        """Animated flames of the placed torches on screen (the sticks are
+        part of the cached chunks).  Drawn before lighting, so they sit
+        behind the player and take the torch's own warm light."""
+        world, A = self.world, self.assets
         x0, y0 = max(0, icx // 16 - 1), max(0, icy // 16 - 1)
         x1 = min(world.w, (icx + SCREEN_W) // 16 + 2)
         y1 = min(world.h, (icy + SCREEN_H) // 16 + 2)
@@ -280,20 +274,12 @@ class Renderer:
         torches = []
         for x, y in zip(xs.tolist(), ys.tolist()):
             f = int(frames[x, y]) & 3
+            tx, ty = x + x0, y + y0
+            ox, oy = A.flame_offset[f]
+            ws.blit(A.flame(tx, ty), (tx * 16 + ox - icx, ty * 16 + oy - icy))
             dx = -2 if f == T.TORCH_LEFT else 2 if f == T.TORCH_RIGHT else 0
-            torches.append(((x + x0) * 16 + 8 + dx, (y + y0) * 16 + 3))
-        self.visible_torches = torches
-        glow = self.flame_glow
-        rnd = np.random.random((len(torches) + len(flames), 2, 2))
-        for i, (fx, fy) in enumerate(list(torches) + list(flames)):
-            for k in range(2):
-                jx = (rnd[i, k, 0] - 0.5) * 3.0
-                jy = -rnd[i, k, 1] * 2.5
-                screen.blit(glow, (fx - 7 + jx - icx, fy - 8 + jy - icy),
-                            special_flags=pygame.BLEND_RGB_ADD)
-        for p in particles:
-            if p.glow:
-                p.draw(screen, icx, icy, self.assets)
+            torches.append((tx * 16 + 8 + dx, ty * 16 + 3))
+        self.visible_torches = torches      # ember sources
 
     def _draw_tree_decor(self, ws, icx, icy):
         world, A = self.world, self.assets

@@ -9,8 +9,6 @@ from . import tiles as T
 from .inventory import ARMOR_TYPES, MISC_NAMES
 from .items import (ITEMS, RECIPES, RARITY_COLORS, Stack, get_icon,
                     tooltip_lines)
-from .customskins import all_skin_names, make_gfx
-from .playergfx import IDLE
 
 SW, SH = C.SCREEN_W, C.SCREEN_H
 SLOT = 44
@@ -107,14 +105,11 @@ class UI:
         self.game = game
         self.text = game.text
         self.assets = game.assets
+        self._icon_fit = {}
         self.inventory_open = False
         self.equip_page = 0          # 0 = armour/accessories, 1 = misc
         self.settings_open = False
-        self.wardrobe_open = False
         self._settings_hover = None
-        self.wardrobe_scroll = 0
-        self.skin_names = all_skin_names()
-        self._skin_gfx = {}
         self.chest = None            # (x, y) of open chest
         self.recipe_scroll = 0
         self.selected_recipe = 0
@@ -369,7 +364,7 @@ class UI:
 
     # ------------------------------------------------------------ queries
     def mouse_over_ui(self, pos):
-        if self.settings_open or self.wardrobe_open:
+        if self.settings_open:
             return True
         for ref in self.slots:
             if ref.rect.collidepoint(pos):
@@ -389,8 +384,6 @@ class UI:
     # -------------------------------------------------------------- input
     def handle_click(self, button, pos, mods):
         """Returns True if the UI consumed the click."""
-        if self.wardrobe_open:
-            return self._wardrobe_click(pos)
         if self.settings_open:
             return self._settings_click(pos)
         for rect, action in self.buttons:
@@ -427,9 +420,6 @@ class UI:
         return self.mouse_over_ui(pos)
 
     def handle_wheel(self, dy, pos):
-        if self.wardrobe_open:
-            self.wardrobe_scroll -= dy
-            return True
         if self.inventory_open and self.available:
             top = self._craft_rect(self.recipe_scroll).top
             if pygame.Rect(INV_X - 4, top - 4, 400, SH - top).collidepoint(
@@ -714,8 +704,6 @@ class UI:
             self.buttons.append((r, self._open_settings))
         if self.settings_open:
             self._draw_settings(screen, mouse_pos)
-        if self.wardrobe_open:
-            self._draw_wardrobe(screen, mouse_pos)
 
     def draw_overlay(self, screen, mouse_pos):
         """Tooltip, mouse item and cursor - drawn last."""
@@ -726,14 +714,23 @@ class UI:
             self._draw_item(screen, inv.mouse, pygame.Rect(
                 mouse_pos[0] + 6, mouse_pos[1] + 6, 40, 40))
 
+    def _slot_icon(self, name, lim):
+        """Item icon fitted into ``lim`` px; shrunk icons are filtered so
+        large sprites keep their shape (cached per size)."""
+        key = (name, lim)
+        icon = self._icon_fit.get(key)
+        if icon is None:
+            icon = get_icon(name, self.assets)
+            w, h = icon.get_size()
+            if max(w, h) > lim:
+                k = lim / max(w, h)
+                icon = pygame.transform.smoothscale(
+                    icon, (max(1, round(w * k)), max(1, round(h * k))))
+            self._icon_fit[key] = icon
+        return icon
+
     def _draw_item(self, screen, stack, rect, scale=1.0):
-        icon = get_icon(stack.name, self.assets)
-        w, h = icon.get_size()
-        lim = rect.w * 0.78 * scale
-        if max(w, h) > lim:
-            k = lim / max(w, h)
-            icon = pygame.transform.scale(icon, (max(1, int(w * k)),
-                                                 max(1, int(h * k))))
+        icon = self._slot_icon(stack.name, int(rect.w * 0.82 * scale))
         screen.blit(icon, icon.get_rect(center=rect.center))
         if stack.count > 1:
             self.text.draw(screen, str(stack.count),
@@ -962,17 +959,6 @@ class UI:
             if sr.collidepoint(mouse_pos):
                 self.hover_text = [(f"{inv.defense()} Defense",
                                     (255, 255, 255))]
-        # wardrobe (skins) button
-        wr = pygame.Rect(ex - 52, ey + 80, 34, 34)
-        screen.blit(self.slot_imgs_small["main"], wr)
-        head = pygame.transform.scale(self.game.player.gfx.head_icon(),
-                                      (26, 26))
-        screen.blit(head, head.get_rect(center=wr.center))
-        if wr.collidepoint(mouse_pos):
-            self.hover_text = [("Wardrobe (K)", (255, 255, 255)),
-                               ("Change your character's skin",
-                                (200, 200, 210))]
-        self.buttons.append((wr, self.open_wardrobe))
         # page tabs
         for page, label, sil in ((0, "Equipment", "body"),
                                  (1, "Misc Equipment", "pet")):
@@ -1122,111 +1108,6 @@ class UI:
                 elif key == "back":
                     self.close_settings()
                 C.save_settings(s)
-                return True
-        return True
-
-    # ------------------------------------------------------------ wardrobe
-    def open_wardrobe(self):
-        self.wardrobe_open = True
-        self.settings_open = False
-        self.skin_names = all_skin_names()     # pick up newly added PNGs
-        self._skin_gfx = {}
-
-    def _skin_preview(self, name):
-        look = dict(self.game.player.look)
-        look["skin_preset"] = name
-        key = name if name != "Custom" else ("Custom", tuple(sorted(
-            (k, v) for k, v in look.items() if k != "skin_preset")))
-        g = self._skin_gfx.get(key)
-        if g is None:
-            g = make_gfx(look)
-            self._skin_gfx[key] = g
-        return g
-
-    WARDROBE_ROWS = 3
-
-    def _wardrobe_layout(self):
-        cols, cw, chh = 8, 124, 150
-        names = self.skin_names
-        total_rows = (len(names) + cols - 1) // cols
-        rows = min(self.WARDROBE_ROWS, total_rows)
-        self.wardrobe_scroll = max(0, min(self.wardrobe_scroll,
-                                          total_rows - rows))
-        panel = pygame.Rect(0, 0, cols * cw + 40, rows * chh + 110)
-        panel.center = (SW // 2, SH // 2)
-        cards = []
-        first = self.wardrobe_scroll * cols
-        for j, name in enumerate(names[first:first + rows * cols]):
-            r = pygame.Rect(panel.x + 20 + (j % cols) * cw,
-                            panel.y + 56 + (j // cols) * chh, cw - 8,
-                            chh - 8)
-            cards.append((r, name))
-        close = pygame.Rect(0, 0, 160, 36)
-        close.midbottom = (panel.centerx, panel.bottom - 12)
-        return panel, cards, close
-
-    def _draw_wardrobe(self, screen, mouse_pos):
-        shade = pygame.Surface((SW, SH), pygame.SRCALPHA)
-        shade.fill((0, 0, 0, 150))
-        screen.blit(shade, (0, 0))
-        panel, cards, close = self._wardrobe_layout()
-        bg = pygame.Surface(panel.size, pygame.SRCALPHA)
-        pygame.draw.rect(bg, (33, 43, 99, 235), bg.get_rect(),
-                         border_radius=12)
-        pygame.draw.rect(bg, (110, 130, 210), bg.get_rect(), 3,
-                         border_radius=12)
-        screen.blit(bg, panel)
-        self.text.draw(screen, "Wardrobe", (panel.centerx, panel.y + 12), 28,
-                       anchor="midtop")
-        total_rows = (len(self.skin_names) + 7) // 8
-        if total_rows > self.WARDROBE_ROWS:
-            page = self.wardrobe_scroll + 1
-            pages = total_rows - self.WARDROBE_ROWS + 1
-            self.text.draw(screen, f"Scroll for more  ({page}/{pages})",
-                           (panel.right - 24, panel.y + 18), 15,
-                           (200, 205, 230), anchor="topright")
-        self.text.draw(screen, "Add your own: put PNG sprite sheets in the "
-                       "skins/ folder", (panel.x + 24, panel.y + 18), 15,
-                       (200, 205, 230))
-        current = self.game.player.look.get("skin_preset", "Custom")
-        for r, name in cards:
-            hov = r.collidepoint(mouse_pos)
-            sel = name == current
-            col = (90, 110, 190) if hov else (63, 82, 151)
-            pygame.draw.rect(screen, col, r, border_radius=8)
-            pygame.draw.rect(screen, (255, 230, 120) if sel else
-                             (120, 140, 220), r, 3 if sel else 2,
-                             border_radius=8)
-            g = self._skin_preview(name)
-            f = g.frame(IDLE, 10, 4)
-            img = pygame.transform.scale(f, (int(f.get_width() * 1.25),
-                                             int(f.get_height() * 1.25)))
-            screen.blit(img, img.get_rect(center=(r.centerx, r.y + 58)))
-            self.text.draw(screen, name, (r.centerx, r.bottom - 8), 14,
-                           (255, 235, 100) if sel or hov else (255, 255, 255),
-                           anchor="midbottom")
-        hov = close.collidepoint(mouse_pos)
-        pygame.draw.rect(screen, (73, 94, 171) if hov else (53, 70, 140),
-                         close, border_radius=8)
-        pygame.draw.rect(screen, (120, 140, 220), close, 2, border_radius=8)
-        self.text.draw(screen, "Close", close.center, 22,
-                       (255, 235, 100) if hov else (255, 255, 255),
-                       anchor="center")
-
-    def _wardrobe_click(self, pos):
-        panel, cards, close = self._wardrobe_layout()
-        if close.collidepoint(pos):
-            self.wardrobe_open = False
-            self.game.sound("menu")
-            return True
-        for r, name in cards:
-            if r.collidepoint(pos):
-                p = self.game.player
-                look = dict(p.look)
-                look["skin_preset"] = name
-                p.set_look(look)
-                self.game.sound("grab")
-                self.message(f"Skin changed to {name}.", (255, 240, 150))
                 return True
         return True
 

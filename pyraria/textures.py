@@ -166,16 +166,31 @@ class Assets:
                  "...w....",
                  "...d....",
                  "...d...."]
-        base = template(torch, tp)
+        self.torch_icon = template(torch, tp, 3)
+        # placed / held torches: the stick is static (baked into chunks),
+        # the flame is drawn every frame from FLAME_FRAMES so it flickers
+        base = template(["." * 8] * 4 + torch[4:], tp)
         self.torch = [base, base, base, base]
-        # offset versions for wall-side torches
+        # leaning versions for wall-side torches
         left = pygame.Surface((16, 16), pygame.SRCALPHA)
         left.blit(pygame.transform.rotate(base, -18), (-2, -1))
         right = pygame.Surface((16, 16), pygame.SRCALPHA)
         right.blit(pygame.transform.rotate(base, 18), (2, -1))
         self.torch[T.TORCH_LEFT] = left
         self.torch[T.TORCH_RIGHT] = right
-        self.torch_icon = template(torch, tp, 3)
+        self.torch_flames = [template(f, tp) for f in FLAME_FRAMES]
+        fw, fh = self.torch_flames[0].get_size()
+        # where each torch frame's flame goes: its bottom centre sits on the
+        # top of the stick
+        self.flame_offset = []
+        for stick in self.torch:
+            ys = [y for y in range(16) for x in range(16)
+                  if stick.get_at((x, y)).a]
+            top = min(ys)
+            xs = [x for x in range(16) if stick.get_at((x, top)).a]
+            cx = (min(xs) + max(xs) + 1) / 2
+            self.flame_offset.append((round(cx - fw / 2), top - fh))
+        self.anim_tick = 0           # set by the renderer every frame
 
         # seams drawn where a block touches a block of another material
         self.seams = []
@@ -548,6 +563,57 @@ class Assets:
     def build_misc(self):
         self.white = pygame.Surface((16, 16))
         self.white.fill((255, 255, 255))
+
+    def flame(self, x=0, y=0):
+        """Current flame frame of the torch at tile (x, y); every torch
+        flickers through FLAME_SEQ with its own phase."""
+        i = self.anim_tick // FLAME_TICKS + (x * 7 + y * 13) % len(FLAME_SEQ)
+        return self.torch_flames[FLAME_SEQ[i % len(FLAME_SEQ)]]
+
+
+# ---------------------------------------------------------------------------
+# Torch flame animation (5x5 art, bottom row rests on the stick)
+# ---------------------------------------------------------------------------
+FLAME_FRAMES = [
+    [".....",
+     "..o..",
+     ".oyo.",
+     ".yYy.",
+     ".yWy."],
+    [".....",
+     "...o.",
+     "..yo.",
+     ".yYy.",
+     ".yWy."],
+    ["...o.",
+     "..oy.",
+     ".oYo.",
+     ".yYy.",
+     ".yWy."],
+    ["..o..",
+     "..y..",
+     ".oYo.",
+     ".yYy.",
+     ".yWy."],
+    [".o...",
+     ".yo..",
+     ".oYo.",
+     ".yYy.",
+     ".yWy."],
+    [".....",
+     ".o...",
+     ".oy..",
+     ".yYy.",
+     ".yWy."],
+    [".....",
+     ".....",
+     ".oyo.",
+     "oyYyo",
+     ".yWy."],
+]
+# frame order: the tip sways and stretches irregularly, like a real flame
+FLAME_SEQ = [0, 3, 0, 1, 2, 1, 0, 6, 0, 5, 4, 5, 0, 3, 2, 1, 0, 5, 0, 6]
+FLAME_TICKS = 5          # render frames per flame frame
 
 
 # ---------------------------------------------------------------------------

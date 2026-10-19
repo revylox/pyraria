@@ -60,7 +60,6 @@ to generate. Saves go to `saves/`.
 | Select hotbar slot | `1`–`0`, mouse wheel |
 | Fullscreen map | `M` (drag to pan, wheel to zoom) |
 | Minimap mode (frame / overlay / off) | `Tab`, zoom with `+` / `-` |
-| Wardrobe (change skin) | `K`, or the head button by the equipment slots |
 | Throw held item | `T` |
 | Chat | `Enter` |
 | FPS / position display | `F10` |
@@ -98,7 +97,8 @@ hotbar ↔ bag), and `Ctrl`-click sends an item to the trash.
   air, 0.56 through solid blocks, and loses red faster than blue in water.
   Faces of blocks touching light are fully lit, glass lets light through,
   and a torch held in the hand or lying on the ground lights up its
-  surroundings. Torch flames flicker and give off glowing embers.
+  surroundings. Torch flames are animated (each torch flickers on its own)
+  and give off glowing embers.
 
 **Player and UI**
 - Life with hearts and regeneration, mana stars, breath bubbles, the
@@ -114,24 +114,12 @@ hotbar ↔ bag), and `Ctrl`-click sends an item to the trash.
 - Parallax backgrounds for each biome, an underground backdrop, sun, moon,
   stars and clouds.
 
-**Skins.** 24 looks: a fully customisable *Custom* character plus 23 preset
-skins in the style of Terraria's town folk (Guide, Nurse, Merchant, Arms
-Dealer, Dryad, Stylist, Goblin Tinkerer, Mechanic, Golfer, Painter, Truffle,
-Arcanist, Zoologist, Clothier, Tax Collector, Demolitionist, Tavernkeep,
-Party Girl, Steampunker, Witch Doctor, Wizard, Cyborg, Angler). Pick one when
-creating a character, or switch any time in the **Wardrobe** (`K`).
+**The hero.** Every character uses the same hand-drawn hero sprite
+(`pyraria/sprites/player.png`). Its walk, jump and arm-swing frames are
+made from that one picture. The Copper Pickaxe uses its own sprite
+(`pyraria/sprites/copper_pickaxe.png`).
 
-**Your own sprites, pixel for pixel.** Put any PNG into the `skins/` folder
-and it becomes a skin. It can be a single character image or an animation
-strip in the same vertical layout as Terraria's town-NPC sheets (standing,
-in the air, then walk frames, facing left). The frame size and facing are
-detected automatically, or you can set them in an optional `.json` file. See
-`skins/README.md` for details.
-
-To start from a built-in skin, run `python main.py --export-skin Wizard`.
-That writes an editable sprite-sheet template to `skins/`.
-
-![Skins](docs/screenshots/skins.png)
+![Hero](docs/screenshots/hero.png)
 
 ## About the "empty" world
 
@@ -160,8 +148,8 @@ That writes an editable sprite-sheet template to `skins/`.
 | `pyraria/worldgen.py` | world generator |
 | `pyraria/world.py` | tile/wall/liquid data, liquid simulation, saving |
 | `pyraria/tiles.py`, `items.py`, `inventory.py` | content definitions |
-| `pyraria/player.py`, `playergfx.py` | player physics, item use, sprites and skins |
-| `pyraria/customskins.py`, `skins/` | PNG sprite-sheet skins |
+| `pyraria/player.py`, `playergfx.py` | player physics, item use, character animation |
+| `pyraria/sprites/` | hero and Copper Pickaxe sprites |
 | `pyraria/renderer.py`, `lighting.py`, `background.py` | rendering |
 | `pyraria/terrain_tex.py`, `textures.py` | procedural pixel art |
 | `pyraria/ui.py`, `minimap.py`, `text.py`, `audio.py` | HUD, map, fonts, sound |

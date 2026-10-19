@@ -6,7 +6,6 @@ browser (pygbag), where control must be handed back to the page every frame.
 import asyncio
 import json
 import os
-import sys
 
 import pygame
 
@@ -143,25 +142,9 @@ class GameState:
         self.game.draw()
 
 
-def handle_cli():
-    """Desktop-only command line tools. Returns True if one ran."""
-    args = sys.argv[1:]
-    if args[:1] == ["--export-skin"] and len(args) >= 2:
-        from .customskins import export_template
-        name = " ".join(args[1:])
-        try:
-            print("Wrote", export_template(name))
-        except ValueError as e:
-            print(e)
-            sys.exit(1)
-        return True
-    return False
-
-
 async def main_async():
     await App().run_async()
 
 
 def main():
-    if WEB or not handle_cli():
-        asyncio.run(main_async())
+    asyncio.run(main_async())

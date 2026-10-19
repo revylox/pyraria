@@ -149,14 +149,10 @@ class Game:
                 self.chat = ""
                 pygame.key.start_text_input()
             elif k == pygame.K_ESCAPE:
-                if ui.wardrobe_open:
-                    ui.wardrobe_open = False
-                elif ui.settings_open:
+                if ui.settings_open:
                     ui.close_settings()
                 else:
                     ui.toggle_inventory()
-            elif k == pygame.K_k:
-                ui.wardrobe_open = not ui.wardrobe_open
             elif k == pygame.K_m:
                 self.map.open_full()
             elif k == pygame.K_TAB:
@@ -255,7 +251,7 @@ class Game:
         world.time = (world.time + 1) % (C.DAY_LENGTH + C.NIGHT_LENGTH)
         keys_down = pygame.key.get_pressed()
         typing_blocked = self.map.full_open or ui.settings_open or \
-            ui.wardrobe_open or self.chat is not None
+            self.chat is not None
         keys = {name: (not typing_blocked) and any(keys_down[k] for k in ks)
                 for name, ks in KEYMAP.items()}
         mouse = pygame.mouse.get_pressed()
@@ -414,10 +410,8 @@ class Game:
         night = self.bg.draw_sky(screen, camx, camy, world)
         if camy < world.underground_y * 16:
             self.bg.draw_layers(screen, camx, camy, world, night)
-        hand = p.held_light()
         self.renderer.draw(screen, camx, camy, p, self.entities,
-                           self.particles, self._dynamic_lights(),
-                           [(hand[0], hand[1] - 6)] if hand else [])
+                           self.particles, self._dynamic_lights())
         self._draw_target(screen, camx, camy)
         for t in self.texts:
             t.draw(screen, camx, camy, self.text)

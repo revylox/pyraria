@@ -5,10 +5,31 @@ starter tools and a handful of basic crafting results exist.  The item
 system fully supports armour, accessories, vanity, dyes, coins, ammo and
 misc equipment so new content can be added by registering more ItemDefs.
 """
+import os
+
 import pygame
 
 from . import tiles as T
 from . import textures as TX
+
+SPRITE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "sprites")
+# item sprites drawn from image files: name -> (file, size on screen in px).
+# These are finer than the 2x terrain art, so they are fitted to a size
+# instead of being doubled.
+SPRITE_ICONS = {"Copper Pickaxe": ("copper_pickaxe.png", 46)}
+
+
+def _sprite_icon(name):
+    fname, size = SPRITE_ICONS[name]
+    img = pygame.image.load(os.path.join(SPRITE_DIR, fname))
+    if pygame.display.get_surface():
+        img = img.convert_alpha()
+    w, h = img.get_size()
+    k = size / max(w, h)
+    if k == int(k):
+        return pygame.transform.scale(img, (w * int(k), h * int(k)))
+    return pygame.transform.smoothscale(img, (round(w * k), round(h * k)))
 
 RARITY_COLORS = [(255, 255, 255), (150, 150, 255), (150, 255, 150),
                  (255, 200, 150), (255, 150, 150), (255, 150, 255)]
@@ -269,8 +290,8 @@ def get_icon(name, assets):
         return _icon_cache[name]
     it = ITEMS[name]
     surf = None
-    if name == "Copper Pickaxe":
-        surf = TX.tool_art("pickaxe", (214, 116, 52))
+    if name in SPRITE_ICONS:
+        surf = _sprite_icon(name)
     elif name == "Copper Axe":
         surf = TX.tool_art("axe", (214, 116, 52))
     elif name == "Copper Shortsword":
